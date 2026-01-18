@@ -54,7 +54,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Detect processor architecture
-if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+# On Apple platforms, use pure C fallback (aarch64 assembly doesn't work with Apple clang)
+if(APPLE AND (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"))
+    set(CPU_UNDEFINED ON)
+    message(STATUS "Apple aarch64 detected - using pure C fallback for igzip")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     set(CPU_X86_64 ON)
     set(ARCH_DEF "x86_64")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
@@ -228,3 +232,9 @@ configure_file(
 install(FILES "${CMAKE_BINARY_DIR}/libisal.pc"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
+
+# Build igzip CLI tool
+add_executable(igzip programs/igzip_cli.c)
+target_link_libraries(igzip PRIVATE isal)
+target_include_directories(igzip PRIVATE include igzip)
+install(TARGETS igzip RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
