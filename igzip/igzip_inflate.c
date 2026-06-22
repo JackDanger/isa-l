@@ -2629,3 +2629,21 @@ stop_inflate_and_return:
 
         return (ret > 0) ? ISAL_DECOMP_OK : ret;
 }
+
+/* gzippy export (CHEAP-HEADER oracle variant, 2026-06-21): a NON-static thin
+ * wrapper around the file-local static `read_header`. The igzipbare oracle's
+ * per-block header read currently re-enters the full stateful `isal_inflate`
+ * (avail_out=0 + ISAL_STOPPING_POINT_END_OF_BLOCK_HEADER), which pays the outer
+ * dispatch + tmp_out setup + read-buffer save/restore EVERY block — overhead the
+ * igzip monolith does NOT pay (it calls `read_header` inline once per block, see
+ * the stateless loop at igzip_inflate.c:2190-2207). This export lets the contig
+ * driver call the SAME lean `read_header` igzip uses, removing that re-entry
+ * artifact so `igzipbarecheap - igzip` isolates the gz-driver-vs-monolith
+ * scaffold. read_header self-loads bits (inflate_in_read_bits -> inflate_in_load)
+ * and, for coded blocks, setup_{static,dynamic}_header sets block_state=CODED
+ * (igzip_inflate.c:1001,1391); for stored it sets ISAL_BLOCK_TYPE0 (:1439). */
+int
+gzippy_read_header_export(struct inflate_state *state)
+{
+        return read_header(state);
+}
